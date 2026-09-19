@@ -1,7 +1,7 @@
 {
-  "name": "Jogging",
-  "short_name": "Jogging",
-  "description": "Minimaler GPS-Jogging-Tracker – privat und lokal.",
+  "name": "Sportler",
+  "short_name": "Sportler",
+  "description": "Lokale Sporthistorie für Laufen, Radfahren, Schwimmen und mehr.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

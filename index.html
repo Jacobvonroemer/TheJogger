@@ -4,41 +4,46 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f4f1e9">
-  <meta name="description" content="Minimaler, lokaler Jogging-Tracker als installierbare PWA.">
+  <meta name="description" content="Deine lokale Sporthistorie für Laufen, Radfahren, Schwimmen und mehr.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3ynsBKRqFSJQFQ6QDPfGc05obmH/8=" crossorigin="">
-  <link rel="stylesheet" href="./style.css">
-  <title>Jogging</title>
+  <link rel="stylesheet" href="./style.css?v=4">
+  <title>Sportler</title>
 </head>
 <body>
   <main class="shell">
-    <header class="brand"><span class="brand-mark" aria-hidden="true">J</span><h1>Jogging</h1><span id="offlineBadge" class="badge" hidden>Offline</span></header>
+    <header class="brand"><span class="brand-mark" aria-hidden="true">S</span><h1>Sportler</h1><span id="offlineBadge" class="badge" hidden>Offline</span></header>
 
     <section id="homeView" class="view active" aria-labelledby="homeTitle">
       <h2 id="homeTitle" class="sr-only">Startseite</h2>
       <div class="hero">
-        <p class="eyebrow">Bereit für eine Runde?</p>
+        <p class="eyebrow">Was steht heute an?</p>
+        <div class="sport-switch" role="group" aria-label="Sportart für GPS-Tracking">
+          <button type="button" class="sport-option selected" data-tracking-sport="running" aria-pressed="true"><span aria-hidden="true">●</span> Laufen</button>
+          <button type="button" class="sport-option" data-tracking-sport="cycling" aria-pressed="false"><span aria-hidden="true">▲</span> Rad</button>
+        </div>
         <button id="startButton" class="primary round-button">Start</button>
-        <p class="privacy-note">Deine Läufe und GPS-Daten bleiben auf diesem Gerät.</p>
+        <p class="privacy-note">Deine Aktivitäten und GPS-Daten bleiben auf diesem Gerät.</p>
       </div>
-      <div class="section-heading"><h2>Letzte Läufe</h2><span id="runCount" class="muted"></span></div>
-      <div id="emptyState" class="empty-state"><p>Noch keine Läufe.</p><span>Starte deinen ersten Lauf oder trage ihn manuell ein.</span></div>
+      <div class="section-heading"><h2>Sporthistorie</h2><span id="runCount" class="muted"></span></div>
+      <div id="emptyState" class="empty-state"><p>Noch keine Aktivitäten.</p><span>Starte eine Aufzeichnung oder trage Sport manuell ein.</span></div>
       <ul id="runList" class="run-list" aria-live="polite"></ul>
       <div class="home-actions">
-        <button id="manualButton" class="secondary">＋ Lauf manuell eintragen</button>
+        <button id="manualButton" class="secondary">＋ Aktivität nachtragen</button>
         <button id="exportButton" class="text-button">Daten exportieren</button>
+        <label class="text-button import-label">Daten importieren<input id="importInput" type="file" accept="application/json,.json" hidden></label>
       </div>
     </section>
 
     <section id="trackingView" class="view tracking-view" aria-labelledby="trackingTitle">
       <p id="trackingStatus" class="status"><span class="pulse"></span> GPS wird gesucht …</p>
-      <h2 id="trackingTitle">Tracking läuft</h2>
+      <h2 id="trackingTitle">Laufen wird aufgezeichnet</h2>
       <div class="distance"><strong id="liveDistance">0,00</strong><span>km</span></div>
       <div class="metrics">
         <div><span>Zeit</span><strong id="liveDuration">00:00</strong></div>
-        <div><span>Ø Pace</span><strong id="livePace">–:–– /km</strong></div>
+        <div><span id="liveMetricLabel">Ø Pace</span><strong id="livePace">–:–– /km</strong></div>
       </div>
       <button id="stopButton" class="danger round-button">Stopp</button>
       <p id="accuracyText" class="muted">GPS-Genauigkeit: –</p>
@@ -48,18 +53,22 @@
 
     <section id="detailView" class="view" aria-labelledby="detailTitle">
       <button class="back-button" data-back>← Zurück</button>
-      <p class="eyebrow">Laufdetails</p><h2 id="detailTitle">Lauf</h2>
+      <p id="detailSport" class="eyebrow">Aktivität</p><h2 id="detailTitle">Aktivität</h2>
       <div id="detailMetrics" class="detail-metrics"></div>
       <div id="mapWrap" class="map-wrap"><div id="map" aria-label="Aufgezeichnete Laufroute"></div><p class="map-note">Kartendaten © OpenStreetMap-Mitwirkende</p></div>
-      <div class="detail-actions"><button id="shareButton" class="primary">Bild teilen</button><button id="deleteButton" class="text-button destructive">Lauf löschen</button></div>
+      <div class="detail-actions"><button id="shareButton" class="primary">Bild teilen</button><button id="deleteButton" class="text-button destructive">Aktivität löschen</button></div>
     </section>
 
     <section id="manualView" class="view" aria-labelledby="manualTitle">
-      <button class="back-button" data-back>← Zurück</button><p class="eyebrow">Ohne GPS</p><h2 id="manualTitle">Lauf eintragen</h2>
+      <button class="back-button" data-back>← Zurück</button><p class="eyebrow">Ohne GPS</p><h2 id="manualTitle">Sport nachtragen</h2>
       <form id="manualForm" class="form-card">
+        <label>Sportart<select id="manualSport" required><option value="running">Laufen</option><option value="cycling">Radfahren</option><option value="swimming">Schwimmen</option><option value="other">Sonstiges</option></select></label>
         <label>Datum<input id="manualDate" type="date" required></label>
-        <label>Strecke in km<input id="manualDistance" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="5,00" required></label>
+        <label id="distanceField"><span id="distanceLabel">Strecke in km</span><input id="manualDistance" type="number" inputmode="decimal" min="0" step="0.01" placeholder="5,00"></label>
+        <label id="lapsField" hidden>Bahnen à 50 m<input id="manualLaps" type="number" inputmode="numeric" min="1" step="1" placeholder="20"></label>
         <label>Dauer <span class="muted">(optional)</span><input id="manualDuration" type="text" inputmode="numeric" placeholder="z. B. 32:15" pattern="[0-9]{1,3}:[0-5][0-9]"></label>
+        <label id="locationField" hidden>Ort / Schwimmbad <span class="muted">(optional)</span><input id="manualLocation" type="text" maxlength="80" placeholder="z. B. Stadtbad"></label>
+        <label>Notiz <span class="muted">(optional)</span><input id="manualNote" type="text" maxlength="120" placeholder="Wie war es?"></label>
         <button type="submit" class="primary">Speichern</button>
       </form>
     </section>
@@ -67,6 +76,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="./app.js"></script>
+  <script src="./app.js?v=4"></script>
 </body>
 </html>
