@@ -9,7 +9,7 @@
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3ynsBKRqFSJQFQ6QDPfGc05obmH/8=" crossorigin="">
-  <link rel="stylesheet" href="./style.css?v=4">
+  <link rel="stylesheet" href="./style.css?v=7">
   <title>Sportler</title>
 </head>
 <body>
@@ -32,6 +32,7 @@
       <ul id="runList" class="run-list" aria-live="polite"></ul>
       <div class="home-actions">
         <button id="manualButton" class="secondary">＋ Aktivität nachtragen</button>
+        <button id="weightButton" class="secondary subtle">Gewicht eintragen</button>
         <button id="exportButton" class="text-button">Daten exportieren</button>
         <label class="text-button import-label">Daten importieren<input id="importInput" type="file" accept="application/json,.json" hidden></label>
       </div>
@@ -40,12 +41,22 @@
     <section id="trackingView" class="view tracking-view" aria-labelledby="trackingTitle">
       <p id="trackingStatus" class="status"><span class="pulse"></span> GPS wird gesucht …</p>
       <h2 id="trackingTitle">Laufen wird aufgezeichnet</h2>
-      <div class="distance"><strong id="liveDistance">0,00</strong><span>km</span></div>
-      <div class="metrics">
+      <div class="metrics live-metrics">
+        <div><span>Strecke</span><strong><b id="liveDistance">0,00</b> km</strong></div>
         <div><span>Zeit</span><strong id="liveDuration">00:00</strong></div>
         <div><span id="liveMetricLabel">Ø Pace</span><strong id="livePace">–:–– /km</strong></div>
       </div>
-      <button id="stopButton" class="danger round-button">Stopp</button>
+      <section class="live-panel" aria-labelledby="profileTitle">
+        <div class="panel-heading"><h3 id="profileTitle">Verlauf</h3><span id="profileUpdated" class="muted">wartet auf GPS</span></div>
+        <canvas id="liveProfile" class="profile-chart" height="190" aria-label="Höhen- und Geschwindigkeitsprofil"></canvas>
+        <div class="chart-legend"><span><i class="legend-elevation"></i>Höhe</span><span><i class="legend-speed"></i>Geschwindigkeit</span></div>
+      </section>
+      <section id="shortCircuitCard" class="short-circuit" aria-labelledby="shortCircuitTitle">
+        <div class="panel-heading"><h3 id="shortCircuitTitle">Short Circuit</h3><span id="shortCircuitStatus" class="muted">wartet auf GPS</span></div>
+        <div class="circuit-values"><div><span>Jetzt zurück</span><strong id="routeHomeDistance">–</strong></div><div><span>Gesamtrunde</span><strong id="projectedTotal">–</strong></div></div>
+        <p class="field-hint">Einmal pro Minute über OpenStreetMap/OSRM. Dabei werden Start und aktueller Standort an routing.openstreetmap.de gesendet.</p>
+      </section>
+      <button id="stopButton" class="danger stop-button">Aufzeichnung stoppen</button>
       <p id="accuracyText" class="muted">GPS-Genauigkeit: –</p>
       <p id="backgroundWarning" class="warning" hidden>Die App war im Hintergrund. Prüfe die Route nach dem Lauf.</p>
       <p class="tracking-hint">Für zuverlässiges GPS-Tracking bitte App geöffnet und Bildschirm aktiv lassen.</p>
@@ -55,7 +66,8 @@
       <button class="back-button" data-back>← Zurück</button>
       <p id="detailSport" class="eyebrow">Aktivität</p><h2 id="detailTitle">Aktivität</h2>
       <div id="detailMetrics" class="detail-metrics"></div>
-      <div id="mapWrap" class="map-wrap"><div id="map" aria-label="Aufgezeichnete Laufroute"></div><p class="map-note">Kartendaten © OpenStreetMap-Mitwirkende</p></div>
+      <section id="detailProfileWrap" class="live-panel" hidden><div class="panel-heading"><h3>Höhe & Geschwindigkeit</h3></div><canvas id="detailProfile" class="profile-chart" height="190"></canvas><div class="chart-legend"><span><i class="legend-elevation"></i>Höhe</span><span><i class="legend-speed"></i>Geschwindigkeit</span></div></section>
+      <div id="mapWrap" class="map-wrap"><div id="map" aria-label="Aufgezeichnete Laufroute"></div><canvas id="routeFallback" class="route-fallback" aria-label="Schematische Darstellung der aufgezeichneten Route"></canvas><p id="mapNote" class="map-note">Kartendaten © OpenStreetMap-Mitwirkende · Route bleibt auch ohne Kartenkacheln sichtbar</p></div>
       <div class="detail-actions"><button id="shareButton" class="primary">Bild teilen</button><button id="deleteButton" class="text-button destructive">Aktivität löschen</button></div>
     </section>
 
@@ -66,16 +78,29 @@
         <label>Datum<input id="manualDate" type="date" required></label>
         <label id="distanceField"><span id="distanceLabel">Strecke in km</span><input id="manualDistance" type="number" inputmode="decimal" min="0" step="0.01" placeholder="5,00"></label>
         <label id="lapsField" hidden>Bahnen à 50 m<input id="manualLaps" type="number" inputmode="numeric" min="1" step="1" placeholder="20"></label>
-        <label>Dauer <span class="muted">(optional)</span><input id="manualDuration" type="text" inputmode="numeric" placeholder="z. B. 32:15" pattern="[0-9]{1,3}:[0-5][0-9]"></label>
+        <label>Dauer <span class="muted">(optional)</span><input id="manualDuration" type="text" inputmode="numeric" placeholder="20 oder 20.30" aria-describedby="durationHint"><small id="durationHint" class="field-hint">Ganze Zahl = Minuten. Mit Trennzeichen = Minuten und Sekunden.</small></label>
         <label id="locationField" hidden>Ort / Schwimmbad <span class="muted">(optional)</span><input id="manualLocation" type="text" maxlength="80" placeholder="z. B. Stadtbad"></label>
         <label>Notiz <span class="muted">(optional)</span><input id="manualNote" type="text" maxlength="120" placeholder="Wie war es?"></label>
         <button type="submit" class="primary">Speichern</button>
       </form>
     </section>
+
+    <section id="weightView" class="view" aria-labelledby="weightTitle">
+      <button class="back-button" data-back>← Zurück</button><p class="eyebrow">Nur für dich</p><h2 id="weightTitle">Gewichtsverlauf</h2>
+      <form id="weightForm" class="form-card compact-form">
+        <label>Datum<input id="weightDate" type="date" required></label>
+        <label>Gewicht in kg<input id="weightKg" type="number" inputmode="decimal" min="20" max="400" step="0.1" placeholder="75,5" required></label>
+        <button type="submit" class="primary">Speichern</button>
+      </form>
+      <canvas id="weightChart" class="weight-chart" height="220" aria-label="Gewichtsverlauf"></canvas>
+      <div class="section-heading weight-heading"><h2>Einträge</h2><span id="weightSummary" class="muted"></span></div>
+      <ul id="weightList" class="weight-list"></ul>
+      <p id="weightEmpty" class="empty-state">Noch kein Gewicht eingetragen.</p>
+    </section>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="./app.js?v=4"></script>
+  <script src="./app.js?v=7"></script>
 </body>
 </html>
